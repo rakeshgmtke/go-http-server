@@ -1,0 +1,10 @@
+# Run server with logging enabled
+go run main.go --config=config.json --ip=0.0.0.0 --ports=8080,3001 --log=true  --log_path=/var/tmp/server.log
+
+# Run server with logging disabled
+go run main.go --config=config.json --ip=0.0.0.0 --ports=8080,3001 --log=false
+
+
+
+go run main.go --config=config.json --ip=0.0.0.0  --log=true --log_path=/var/tmp/server.log
+

@@ -1,0 +1,55 @@
+{
+    "routes": [
+        {
+            "path": "/api1$",
+            "method": "POST",
+            "status": 200,
+			"delay": 0,
+			"includeRspBodyfromReqBody": false,
+            "body": {
+					    "nfInstanceId": "00000000-0000-1111-2222-333333333333API1",
+					    "implicitUnsubscribe": true,
+					    "expires": "2024-08-09T06:25:12Z",
+					    "SUPI": "405052000000022",
+					    "callbackReference": "http://10.69.96.51:3004/imsi-405052000000022/nhss/notifyUri",
+					    "immediateReport": false,
+					    "monitoredResourceUris": ["http://udm-sdm.mvnr-mtcil1-appln-udm-udm1:3000/nudm-sdm/v2/imsi-405052000000022/ue-context-in-amf-data", "http://udm-sdm.mvnr-mtcil1-appln-udm-udm1:3000/nudm-sdm/v2/imsi-405052000000022/ue-context-in-smf-data"]
+			},
+            "headers": {
+                "Custom-Header": "Value1",
+                "Another-Header": "Value2"
+            }
+        },
+        {
+            "path": "/deregister-amf$",
+            "method": "POST",
+            "status": 200,
+            "includeRspBodyfromReqBody": true,
+            "headers": {
+                "User-Agent": "AMF",
+                "Content-Type": "application/json"
+            }
+        },
+        {
+            "path": "^/api2$",
+            "method": "GET",
+            "status": 201,
+			"delay": 500,
+            "includeRspBodyfromReqBody": false,
+            "body": {"message": "Hello from API 2"},
+            "headers": {
+                "Custom-Header": "Value3"
+            }
+        },
+        {
+            "path": "^/api3$",
+            "method": "PUT",
+            "status": 200,
+			"delay": 0,
+            "includeRspBodyfromReqBody": false,
+            "body": {"message": "Hello from API 3"},
+            "headers": {}
+        }
+    ]
+}
+
