@@ -57,16 +57,17 @@ type Metrics struct {
 	RouteMetrics  map[string]*RouteMetric
 	RouteOrder    []string
 	TotalReceived int
-	UnknownMethod int
-	UnknownAPI    int
-	Lock          sync.Mutex
+	//UnknownMethod int
+	UnknownAPI int
+	Lock       sync.Mutex
 }
 
 // RouteMetric holds the metrics for a specific route
 type RouteMetric struct {
-	Count     int
-	Http2     int // to count http2 msgs
-	Timestamp []time.Time
+	Count          int // total http/http2 msgs count
+	Http2          int // total only http2 msgs count
+	previous_Http2 int // previous http/http2 msgs count recevied
+	//Timestamp      []time.Time
 }
 
 // Initialize metrics based on the routes in the config
@@ -85,7 +86,9 @@ func initializeMetrics(config *Config) *Metrics {
 	return metrics
 }
 
+/*
 // Calculate TPS (Transactions Per Second) for each route
+//below TPS Calculatation will have go routine stuck when calculateTPS due metric.Timestamp is huge data.. so come up with simple soultion to Calculate TPS
 func calculateTPS(metrics *Metrics, interval time.Duration) map[string]float64 {
 	tps := make(map[string]float64)
 	now := time.Now()
@@ -100,6 +103,7 @@ func calculateTPS(metrics *Metrics, interval time.Duration) map[string]float64 {
 	}
 	return tps
 }
+*/
 
 // Print metrics every second in a column format
 func printMetrics(metrics *Metrics, ip, ports string) {
@@ -122,12 +126,15 @@ func printMetrics(metrics *Metrics, ip, ports string) {
 		fmt.Printf("%-60s %-15s %-15s %-15s\n", "API", "Count", "TPS", "HTTP2")
 		fmt.Printf("======================================================================================================\n")
 		metrics.Lock.Lock()
-		tps := calculateTPS(metrics, time.Second)
+		//tps := calculateTPS(metrics, time.Second)
 		for _, path := range metrics.RouteOrder {
 			if metric, ok := metrics.RouteMetrics[path]; ok {
 				count := metric.Count
 				http2 := metric.Http2
-				fmt.Printf("%-60s %-15d %-15.2f %-15d\n", path, count, tps[path], http2)
+				tps := count - metric.previous_Http2
+				metric.previous_Http2 = count
+				//fmt.Printf("%-60s %-15d %-15.2f %-15d\n", path, count, tps[path], http2)
+				fmt.Printf("%-60s %-15d %-15d %-15d\n", path, count, tps, http2)
 			}
 		}
 		fmt.Printf("======================================================================================================\n")
@@ -246,9 +253,9 @@ func handler(w http.ResponseWriter, r *http.Request, config *Config, metrics *Me
 			if r.Proto == "HTTP/2.0" {
 				metrics.RouteMetrics[method_api].Http2++
 			}
-			metrics.RouteMetrics[method_api].Timestamp = append(metrics.RouteMetrics[method_api].Timestamp, time.Now())
+			//metrics.RouteMetrics[method_api].Timestamp = append(metrics.RouteMetrics[method_api].Timestamp, time.Now())
 			metrics.Lock.Unlock()
-			//handlerResponse(w, r, route, reqBody, enableLogging)
+			handlerResponse(w, r, route, reqBody, enableLogging)
 			return
 		}
 	}
