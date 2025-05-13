@@ -76,8 +76,11 @@ func initializeMetrics(config *Config) *Metrics {
 		RouteOrder:   make([]string, len(config.Routes)),
 	}
 	for i, route := range config.Routes {
-		metrics.RouteMetrics[route.Path] = &RouteMetric{}
-		metrics.RouteOrder[i] = route.Path
+		//metrics.RouteMetrics[route.Path] = &RouteMetric{}
+		//metrics.RouteOrder[i] = route.Path
+		method_api := route.Method + " ---> " + route.Path
+		metrics.RouteMetrics[method_api] = &RouteMetric{}
+		metrics.RouteOrder[i] = method_api
 	}
 	return metrics
 }
@@ -129,7 +132,7 @@ func printMetrics(metrics *Metrics, ip, ports string) {
 		}
 		fmt.Printf("======================================================================================================\n")
 		fmt.Printf("%-60s %-15d %-15.2f\n", "Total Received", metrics.TotalReceived, 00.0)
-		fmt.Printf("%-60s %-15d %-15.2f\n", "Unknown Method", metrics.UnknownMethod, 00.0)
+		//fmt.Printf("%-60s %-15d %-15.2f\n", "Unknown Method", metrics.UnknownMethod, 00.0)
 		fmt.Printf("%-60s %-15d %-15.2f\n", "Unknown API", metrics.UnknownAPI, 00.0)
 		fmt.Printf("======================================================================================================\n")
 		metrics.Lock.Unlock()
@@ -170,8 +173,12 @@ func handlerResponse(w http.ResponseWriter, r *http.Request, route RouteConfig, 
 		log.Printf("Response sent delayed: %d ms with status: %d at %s\nURL: %s\nHeader: %s \nIncludeRspBodyfromReqBody: %t \nResponse body: %s\n", route.Delay, route.Status, time.Now().Format("2006-01-02 15:04:05"), r.URL, route.Headers, route.IncludeRspBodyfromReqBody, responseBody)
 	}
 
-	// Apply the delay if specified
-	if route.Delay > 0 {
+	// Apply the delay if specified and if based on Percentage delay
+	if route.Delay > 0 { //&& PercentageDelay(float64(route.PercentageDelay)){
+		if enableLogging {
+			log.Printf("delay is applied for URL: %s\nHeader: %s \nIncludeRspBodyfromReqBody: %t \nResponse body: %s\n Delayed By: %d ms", r.URL, route.Headers, route.IncludeRspBodyfromReqBody, responseBody, route.Delay)
+		}
+
 		delayDuration := time.Duration(route.Delay) * time.Millisecond
 		done := make(chan struct{})
 
@@ -193,6 +200,7 @@ func handlerResponse(w http.ResponseWriter, r *http.Request, route RouteConfig, 
 
 		// Wait for the delay to complete
 		<-done
+
 	} else {
 		// If no delay, write the response immediately
 		if _, err := w.Write(responseBody); err != nil {
@@ -228,27 +236,19 @@ func handler(w http.ResponseWriter, r *http.Request, config *Config, metrics *Me
 	metrics.Lock.Unlock()
 
 	for _, route := range config.Routes {
-		matched, _ := regexp.MatchString(route.Path, r.URL.Path)
-		if matched {
-			if route.Method != r.Method {
-				metrics.Lock.Lock()
-				metrics.UnknownMethod++
-				metrics.Lock.Unlock()
-				http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-				fmt.Println("Method Not Allowed for Request received, Sending 405 Method Not Allowed: %s %s\n", r.Method, r.URL.Path)
-				log.Printf("Method Not Allowed for Request received, Sending 405 Method Not Allowed: %s %s\n", r.Method, r.URL.Path)
-				return
-			}
-
+		matched_path, _ := regexp.MatchString(route.Path, r.URL.Path)
+		matched_method, _ := regexp.MatchString(route.Method, r.Method)
+		if matched_path && matched_method {
+			method_api := route.Method + " ---> " + route.Path
 			metrics.Lock.Lock()
-			metrics.RouteMetrics[route.Path].Count++
+			metrics.RouteMetrics[method_api].Count++
+			//fmt.Println("Printing Proto:", r.Proto)
 			if r.Proto == "HTTP/2.0" {
-				metrics.RouteMetrics[route.Path].Http2++
+				metrics.RouteMetrics[method_api].Http2++
 			}
-			metrics.RouteMetrics[route.Path].Timestamp = append(metrics.RouteMetrics[route.Path].Timestamp, time.Now())
+			metrics.RouteMetrics[method_api].Timestamp = append(metrics.RouteMetrics[method_api].Timestamp, time.Now())
 			metrics.Lock.Unlock()
-
-			handlerResponse(w, r, route, reqBody, enableLogging)
+			//handlerResponse(w, r, route, reqBody, enableLogging)
 			return
 		}
 	}
@@ -256,7 +256,7 @@ func handler(w http.ResponseWriter, r *http.Request, config *Config, metrics *Me
 	metrics.Lock.Lock()
 	metrics.UnknownAPI++
 	metrics.Lock.Unlock()
-	fmt.Println("API is Not Allowed for Request received, Sending 404 Not Found: %s %s\n", r.Method, r.URL.Path)
+	//fmt.Println("API is Not Allowed for Request received, Sending 404 Not Found: %s %s\n", r.Method, r.URL.Path)
 	log.Printf("API is Not Allowed for Request received, Sending 404 Not Found: %s %s\n", r.Method, r.URL.Path)
 	http.Error(w, "Not Found", http.StatusNotFound)
 }
@@ -325,7 +325,7 @@ func main() {
 	ip := flag.String("ip", "0.0.0.0", "IP address to listen on")
 	ports := flag.String("ports", "8080", "Comma-separated list of ports to listen on for HTTP/1.1 and HTTP2")
 	enableLogging := flag.Bool("log", false, "Enable logging")
-	cpuprof := flag.Bool("log", false, "Enable CPU profiling")
+	cpuprof := flag.Bool("cpupprof", false, "Enable CPU profiling")
 	logPath := flag.String("log_path", "/tmp/server.log", "Path to log file")
 	flag.Parse()
 
@@ -366,14 +366,15 @@ func main() {
 		servers = append(servers, server)
 	}
 
-	if len(*cpuprof) > 0 {
-		profilerFile, _ := os.Create(cpuprof.cpuprof)
+	// Start metrics printing
+	go printMetrics(metrics, *ip, *ports)
+
+	// CPU Profiling if its enabled
+	if *cpuprof == true {
+		profilerFile, _ := os.Create("httpserver.cpuprof")
 		pprof.StartCPUProfile(profilerFile)
 		defer pprof.StopCPUProfile()
 	}
-
-	// Start metrics printing
-	go printMetrics(metrics, *ip, *ports)
 
 	// Handle graceful shutdown
 	gracefulShutdown(servers, &wg, 5*time.Second)

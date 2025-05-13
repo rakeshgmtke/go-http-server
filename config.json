@@ -4,7 +4,7 @@
             "path": "/api1$",
             "method": "POST",
             "status": 200,
-			"delay": 0,
+            "delay": 0,
 			"includeRspBodyfromReqBody": false,
             "body": {
 					    "nfInstanceId": "00000000-0000-1111-2222-333333333333API1",
@@ -20,6 +20,17 @@
                 "Another-Header": "Value2"
             }
         },
+        {
+            "path": "^/api1$",
+            "method": "GET",
+            "status": 201,
+			"delay": 0,
+            "includeRspBodyfromReqBody": false,
+            "body": {"message": "Hello from API 2"},
+            "headers": {
+                "Custom-Header": "Value3"
+            }
+        },        
         {
             "path": "/deregister-amf$",
             "method": "POST",
