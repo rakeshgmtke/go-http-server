@@ -46,6 +46,16 @@ Configuration
 				}
 			},
 			{
+				"path": "/hello1$",
+				"method": "POST",
+				"status": 200,
+				"delay": 1000,
+				"includeRspBodyfromReqBody": false,  
+				"body": {"message": "Hello, World!"},
+				"headers": {
+					"X-Custom-Header": "MyValue"
+				}
+			},			{
 				"path": "/hello2$",
 				"method": "PUT",
 				"status": 200,
@@ -77,7 +87,8 @@ Usage
 	-config: Path to the configuration file (default: config.json).
 	-ip: IP address to listen on (default: 0.0.0.0).
 	-ports: Comma-separated list of ports to listen on for HTTP/1.1 and HTTP2")
-	-log: Enable logging to file (default: false).
+	-enableLogging: Enable logging to file (default: false).
+	-cpuprof: Enable CPU profiling (default: false).
 	-log_path: Path to log file (default: /tmp/server.log).
 
 
@@ -96,11 +107,11 @@ Usage
 		---------------------------------------------------------------------------------------
 		API                                                          Count           TPS        
 		=======================================================================================
-		/hello1$                                                   	23976           100.00       
-		/hello2$                                             		23976           100.00       
+		GET ---> /hello1$                                          	23976           100.00       
+		POST ---> /hello1$                                    		10000           100.00       
+		PUT ---> /hello2$                                    		23976           100.00       
 		=======================================================================================
-		Total Received                                              47952            0.00       
-		Unknown Method                                               0               0.00       
+		Total Received                                              57952            0.00       
 		Unknown API                                                  0               0.00       
 		=======================================================================================
 
